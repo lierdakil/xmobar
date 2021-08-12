@@ -48,22 +48,19 @@ split p s = case break p s of
   (pref, _:suf) -> pref : split p suf
   (pref, "") -> [pref]
 
--- replaces input string if on search list (exact match) with corresponding
--- element on replacement list.
---
--- if not found, return string unchanged
-searchReplaceLayout :: KbdOpts -> String -> String
-searchReplaceLayout opts s = fromMaybe s $ lookup s opts
-
 -- returns the active layout
 getKbdLay :: Display -> KbdOpts -> IO String
 getKbdLay dpy opts = do
   lay <- splitLayout <$> getLayoutStr dpy
   grps <- map (map toLower . take 2) <$> getGrpNames dpy
   curLay <- getKbdLayout dpy
-  return $ searchReplaceLayout opts
-         $ fromMaybe "??"
-         $ (lay !!? curLay) <|> (grps !!? curLay)
+  let grp = grps !!? curLay
+      grpMangled = (map toLower . take 2) <$> grp
+      res = (grp >>= (`lookup` opts))   -- lookup full group name w/o fallback
+        <|> lookupOpts (lay !!? curLay) -- lookup layout from symbols name if have one w/ fallback
+        <|> lookupOpts grpMangled       -- lookup mangled group name w/ fallback
+  return $ fromMaybe "??" res
+  where lookupOpts x = (x >>= (`lookup` opts)) <|> x
 
 (!!?) :: [a] -> Int -> Maybe a
 (!!?) []       _ = Nothing
